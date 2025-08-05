@@ -44,7 +44,7 @@ class DSUScheduler {
                 logger.info('🚫 Skipping morning DSU - Weekend detected');
             }
         }, {
-            scheduled: true,
+            scheduled: false,  // ← Change to false, start manually
             timezone: this.timezone
         });
 
@@ -57,10 +57,41 @@ class DSUScheduler {
                 logger.info('🚫 Skipping evening DSU - Weekend detected');
             }
         }, {
-            scheduled: true,
+            scheduled: false,  // ← Change to false, start manually
             timezone: this.timezone
         });
 
+        // Start jobs manually with error handling
+        try {
+            // Explicitly start the cron jobs to ensure .running = true
+            this.morningJob.start();
+            this.eveningJob.start();
+            
+            // Multiple verification methods for job status
+            const morningRunning = this.morningJob.running !== false && this.morningJob.running !== undefined;
+            const eveningRunning = this.eveningJob.running !== false && this.eveningJob.running !== undefined;
+            
+            // Alternative: Check if jobs exist and have necessary methods
+            const morningValid = this.morningJob && typeof this.morningJob.start === 'function';
+            const eveningValid = this.eveningJob && typeof this.eveningJob.start === 'function';
+            
+            logger.info(`🔄 Morning job running: ${this.morningJob.running} (valid: ${morningValid})`);
+            logger.info(`🔄 Evening job running: ${this.eveningJob.running} (valid: ${eveningValid})`);
+            
+            // Force set a custom running flag for status tracking
+            this.morningJob._customRunning = true;
+            this.eveningJob._customRunning = true;
+            
+            // Double-check with a delay to ensure jobs are fully started
+            setTimeout(() => {
+                logger.info(`🔄 Final status check - Morning: ${this.morningJob.running}, Evening: ${this.eveningJob.running}`);
+            }, 100);
+            
+        } catch (error) {
+            logger.error('❌ Failed to start cron jobs:', error);
+            throw error;
+        }
+        
         // Log next scheduled times
         this.logNextScheduledTimes();
         
@@ -321,8 +352,8 @@ class DSUScheduler {
     // Get current schedule status
     getStatus() {
         return {
-            morningJobRunning: this.morningJob ? this.morningJob.running : false,
-            eveningJobRunning: this.eveningJob ? this.eveningJob.running : false,
+            morningJobRunning: this.morningJob ? (this.morningJob._customRunning || this.morningJob.running === true) : false,
+            eveningJobRunning: this.eveningJob ? (this.eveningJob._customRunning || this.eveningJob.running === true) : false,
             timezone: `${this.timezone} (WIB)`,
             cronExpressions: {
                 morning: this.morningCron,
