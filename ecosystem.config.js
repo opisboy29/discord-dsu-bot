@@ -4,6 +4,12 @@ module.exports = {
       name: 'dsu-discord-bot',
       script: 'src/index.js',
       
+      // ✅ DYNAMIC: Use current working directory (hapus hardcoded path)
+      cwd: process.cwd(),
+      
+      // ✅ Explicitly load .env from current directory
+      env_file: '.env',
+      
       // Basic configuration
       instances: 1,
       autorestart: true,
@@ -13,11 +19,11 @@ module.exports = {
       // Environment
       env: {
         NODE_ENV: 'development',
-        PORT: process.env.PORT || 3000        // ← Use env variable or default
+        PORT: process.env.PORT || 4000
       },
       env_production: {
         NODE_ENV: 'production',
-        PORT: process.env.PORT || 8080        // ← Different default for prod
+        PORT: process.env.PORT || 8080
       },
       
       // Logging configuration
@@ -60,7 +66,7 @@ module.exports = {
   deploy: {
     production: {
       user: 'node',
-      host: 'your-production-server.com',  // ← Update this if you have server
+      host: 'your-production-server.com',
       ref: 'origin/main',
       repo: 'git@github.com:opisboy29/discord-dsu-bot.git',
       path: '/var/www/dsu-discord-bot',
