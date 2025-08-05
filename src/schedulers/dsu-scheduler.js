@@ -7,8 +7,9 @@
  */
 
 const cron = require('node-cron');
-const { getMorningTemplate, getEveningTemplate } = require('../../config/dsu-templates');
+const { getMorningTemplate, getEveningTemplate, generateThreadTitle } = require('../../config/dsu-templates');
 const logger = require('../utils/logger');
+const ThreadManager = require('../utils/thread-manager');
 
 class DSUScheduler {
     constructor() {
@@ -18,6 +19,7 @@ class DSUScheduler {
         this.timezone = process.env.TIMEZONE || 'Asia/Jakarta';
         this.morningCron = process.env.MORNING_SCHEDULE || '0 9 * * 1-5';
         this.eveningCron = process.env.EVENING_SCHEDULE || '0 17 * * 1-5';
+        this.threadManager = new ThreadManager();
     }
 
     start(discordClient) {
@@ -99,6 +101,9 @@ class DSUScheduler {
             logger.dsu(`Morning DSU reminder sent successfully to #${channel.name} at ${currentTime}`);
             logger.debug(`Message ID: ${message.id}`);
             
+            // Create thread for morning DSU discussion
+            await this.createDSUThread(message, 'morning');
+            
             // Log rotation check
             logger.rotateLogIfNeeded('dsu.log');
         } catch (error) {
@@ -138,10 +143,36 @@ class DSUScheduler {
             logger.dsu(`Evening DSU reminder sent successfully to #${channel.name} at ${currentTime}`);
             logger.debug(`Message ID: ${message.id}`);
             
+            // Create thread for evening DSU discussion
+            await this.createDSUThread(message, 'evening');
+            
             // Log rotation check
             logger.rotateLogIfNeeded('dsu.log');
         } catch (error) {
             logger.error('Error sending evening DSU:', error);
+        }
+    }
+
+    /**
+     * Create a discussion thread for DSU message
+     * @param {Message} message - The DSU message to create thread from
+     * @param {string} type - 'morning' or 'evening'
+     */
+    async createDSUThread(message, type) {
+        try {
+            // Generate thread title using template function
+            const threadTitle = generateThreadTitle(type);
+            
+            // Create thread using thread manager
+            const thread = await this.threadManager.createDSUThread(message, threadTitle, type);
+            
+            if (thread) {
+                logger.success(`🧵 ${type} DSU thread created: #${thread.name}`);
+            }
+            
+        } catch (error) {
+            logger.error(`Failed to create ${type} DSU thread:`, error);
+            // Don't throw error - thread creation failure shouldn't stop DSU posting
         }
     }
 
@@ -310,7 +341,8 @@ class DSUScheduler {
                 hour: '2-digit',
                 minute: '2-digit'
             }),
-            isWeekday: this.isWeekday()
+            isWeekday: this.isWeekday(),
+            threadConfig: this.threadManager.getThreadConfig()
         };
     }
 }

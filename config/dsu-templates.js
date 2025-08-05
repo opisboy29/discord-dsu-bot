@@ -92,6 +92,49 @@ const buildMentionString = () => {
 };
 
 // =================================================================
+// THREAD TITLE GENERATION
+// =================================================================
+
+const generateThreadTitle = (type) => {
+    const now = new Date();
+    const options = {
+        timeZone: DSU_CONFIG.timezone,
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long', 
+        day: 'numeric'
+    };
+    
+    const dateStr = now.toLocaleDateString('en-US', options);
+    
+    if (type === 'morning') {
+        const title = process.env.MORNING_THREAD_TITLE || 
+            '🌅 Daily Standup Update - Morning (📅 [Day], [Date] • 🕘 09:00 AM WIB)';
+        
+        return title
+            .replace('[Day]', now.toLocaleDateString('en-US', { timeZone: DSU_CONFIG.timezone, weekday: 'long' }))
+            .replace('[Date]', now.toLocaleDateString('en-US', { 
+                timeZone: DSU_CONFIG.timezone, 
+                month: 'long', 
+                day: 'numeric' 
+            }));
+    } else if (type === 'evening') {
+        const title = process.env.EVENING_THREAD_TITLE || 
+            '🌆 Daily Standup Update - Evening (📅 [Day], [Date] • 🕘 05:00 PM WIB)';
+        
+        return title
+            .replace('[Day]', now.toLocaleDateString('en-US', { timeZone: DSU_CONFIG.timezone, weekday: 'long' }))
+            .replace('[Date]', now.toLocaleDateString('en-US', { 
+                timeZone: DSU_CONFIG.timezone, 
+                month: 'long', 
+                day: 'numeric' 
+            }));
+    }
+    
+    return 'DSU Discussion Thread';
+};
+
+// =================================================================
 // MORNING DSU TEMPLATE (Yesterday/Today/Blockers)
 // =================================================================
 
@@ -423,6 +466,9 @@ module.exports = {
     buildMentionString,
     getCustomTemplate,
     validateTemplate,
+    
+    // Thread functions
+    generateThreadTitle,
     
     // Configuration access
     DSU_CONFIG

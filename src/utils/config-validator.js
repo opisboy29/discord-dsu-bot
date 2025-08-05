@@ -49,7 +49,10 @@ class ConfigValidator {
             // Step 7: Validate production settings
             this.validateProductionConfig();
 
-            // Step 8: Security validation
+            // Step 8: Thread configuration validation
+            this.validateThreadConfig();
+
+            // Step 9: Security validation
             this.validateSecurityConfig();
 
             // Final assessment
@@ -300,8 +303,62 @@ class ConfigValidator {
         logger.success('✅ Production configuration validated');
     }
 
+    validateThreadConfig() {
+        logger.debug('🔍 Step 8: Validating thread configuration');
+
+        // Validate thread auto-archive duration
+        const archiveDuration = parseInt(process.env.THREAD_AUTO_ARCHIVE_DURATION) || 1440;
+        const validDurations = [60, 1440, 4320, 10080]; // 1 hour, 1 day, 3 days, 1 week
+        
+        if (!validDurations.includes(archiveDuration)) {
+            this.addWarning('INVALID_THREAD_ARCHIVE_DURATION', 
+                `THREAD_AUTO_ARCHIVE_DURATION should be one of: ${validDurations.join(', ')} minutes`);
+        }
+
+        // Validate thread creation reason length
+        const threadReason = process.env.THREAD_CREATION_REASON || 'Automated DSU discussion thread';
+        if (threadReason.length > 512) {
+            this.addError('THREAD_REASON_TOO_LONG', 'THREAD_CREATION_REASON exceeds 512 character limit');
+        }
+
+        // Validate thread title lengths
+        const morningTitle = process.env.MORNING_THREAD_TITLE;
+        const eveningTitle = process.env.EVENING_THREAD_TITLE;
+        
+        if (morningTitle && morningTitle.length > 100) {
+            this.addError('MORNING_THREAD_TITLE_TOO_LONG', 'MORNING_THREAD_TITLE exceeds 100 character limit');
+        }
+        
+        if (eveningTitle && eveningTitle.length > 100) {
+            this.addError('EVENING_THREAD_TITLE_TOO_LONG', 'EVENING_THREAD_TITLE exceeds 100 character limit');
+        }
+
+        // Validate thread message lengths
+        const morningMessage = process.env.MORNING_THREAD_MESSAGE;
+        const eveningMessage = process.env.EVENING_THREAD_MESSAGE;
+        
+        if (morningMessage && morningMessage.length > 2000) {
+            this.addWarning('MORNING_THREAD_MESSAGE_LONG', 
+                `MORNING_THREAD_MESSAGE is ${morningMessage.length} characters (limit: 2000)`);
+        }
+        
+        if (eveningMessage && eveningMessage.length > 2000) {
+            this.addWarning('EVENING_THREAD_MESSAGE_LONG', 
+                `EVENING_THREAD_MESSAGE is ${eveningMessage.length} characters (limit: 2000)`);
+        }
+
+        // Check thread enable status
+        const threadsEnabled = process.env.ENABLE_AUTO_THREADS !== 'false';
+        if (!threadsEnabled) {
+            this.addRecommendation('THREADS_DISABLED', 
+                'Auto-thread creation is disabled - consider enabling for better DSU organization');
+        }
+
+        logger.success('✅ Thread configuration validated');
+    }
+
     validateSecurityConfig() {
-        logger.debug('🔍 Step 8: Validating security configuration');
+        logger.debug('🔍 Step 9: Validating security configuration');
 
         // Validate rate limiting
         const rateWindow = parseInt(process.env.RATE_LIMIT_WINDOW) || 60000;

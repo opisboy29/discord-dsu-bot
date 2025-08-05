@@ -4,6 +4,8 @@ const express = require('express');
 const dsuScheduler = require('./schedulers/dsu-scheduler');
 const logger = require('./utils/logger');
 const ConfigValidator = require('./utils/config-validator');
+const { generateThreadTitle } = require('../config/dsu-templates');
+const ThreadManager = require('./utils/thread-manager');
 
 // Get package info for startup logs
 const packageInfo = require('../package.json');
@@ -78,6 +80,9 @@ const client = new Client({
         GatewayIntentBits.MessageContent // needed for commands to work
     ]
 });
+
+// Create thread manager instance
+const threadManager = new ThreadManager();
 
 client.once('ready', async () => {
     logger.startup('DSU Discord Bot', packageInfo.version);
@@ -158,6 +163,17 @@ client.on('messageCreate', async (message) => {
             
             const sentMessage = await message.channel.send(template);
             logger.dsu(`✅ Morning DSU sent manually to #${message.channel.name} (ID: ${sentMessage.id})`);
+            
+            // Create thread for manual morning DSU
+            try {
+                const threadTitle = generateThreadTitle('morning');
+                const thread = await threadManager.createDSUThread(sentMessage, threadTitle, 'morning');
+                if (thread) {
+                    logger.success(`🧵 Manual morning DSU thread created: #${thread.name}`);
+                }
+            } catch (threadError) {
+                logger.warn('⚠️ Failed to create thread for manual morning DSU:', threadError.message);
+            }
         }
         
         // Manual evening DSU trigger  
@@ -174,6 +190,17 @@ client.on('messageCreate', async (message) => {
             
             const sentMessage = await message.channel.send(template);
             logger.dsu(`✅ Evening DSU sent manually to #${message.channel.name} (ID: ${sentMessage.id})`);
+            
+            // Create thread for manual evening DSU
+            try {
+                const threadTitle = generateThreadTitle('evening');
+                const thread = await threadManager.createDSUThread(sentMessage, threadTitle, 'evening');
+                if (thread) {
+                    logger.success(`🧵 Manual evening DSU thread created: #${thread.name}`);
+                }
+            } catch (threadError) {
+                logger.warn('⚠️ Failed to create thread for manual evening DSU:', threadError.message);
+            }
         }
         
         // Status command - new enhanced command
@@ -203,6 +230,11 @@ client.on('messageCreate', async (message) => {
                     {
                         name: '📊 Current Status',
                         value: `Weekday: ${status.isWeekday ? '✅ Yes' : '❌ No (Weekend)'}\nBot Ready: ✅ Yes`,
+                        inline: false
+                    },
+                    {
+                        name: '🧵 Thread Configuration',
+                        value: `Auto-threads: ${status.threadConfig.enabled ? '✅ Enabled' : '❌ Disabled'}\nAuto-archive: ${status.threadConfig.autoArchiveDurationHours}h\nInitial message: ${status.threadConfig.sendInitialMessage ? '✅' : '❌'}`,
                         inline: false
                     }
                 ],
@@ -236,7 +268,7 @@ client.on('messageCreate', async (message) => {
                     },
                     {
                         name: '🔧 Features',
-                        value: '• Rich Discord embeds\n• Timezone-aware scheduling\n• Weekday-only automation\n• Manual trigger commands\n• Comprehensive error handling',
+                        value: '• Rich Discord embeds\n• Timezone-aware scheduling\n• Weekday-only automation\n• Manual trigger commands\n• Auto-thread creation for discussions\n• Comprehensive error handling',
                         inline: false
                     }
                 ],
